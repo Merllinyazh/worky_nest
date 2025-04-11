@@ -21,7 +21,7 @@ function App() {
               <Home />
             </ProtectedRoute>
           } />
-          <Route path="/project/:id" element={
+          <Route path="/project" element={
             <ProtectedRoute>
               <ProjectDetails />
             </ProtectedRoute>
@@ -32,7 +32,7 @@ function App() {
             </ProtectedRoute>
           } />
           
-          <Route path="/kanban:sprintId" element={
+          <Route path="/kanban" element={
             <ProtectedRoute>
               <KanbanBoard />
             </ProtectedRoute>

@@ -5,7 +5,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 function Backlog() {
-  const { id } = useParams();
+  
   const location = useLocation();
   const project = location.state?.project;
   const navigate = useNavigate();
@@ -163,7 +163,7 @@ function Backlog() {
             <button
   className="mt-4 bg-purple-600 text-white px-4 py-2 rounded-full text-sm hover:bg-purple-700"
   onClick={() =>
-    navigate(`/KanbanBoard/`, {
+    navigate(`/kanban/`, {
       state: {
         sprint,
         project,

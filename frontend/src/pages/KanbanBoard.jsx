@@ -1,118 +1,190 @@
-import { useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-function KanbanBoard() {
-  const [sprintName, setSprintName] = useState('Sprint 1');
-  const [columns, setColumns] = useState({
-    todo: {
-      title: 'TO DO',
-      items: [],
-    },
-    inProgress: {
-      title: 'IN PROGRESS',
-      items: [],
-    },
-    review: {
-      title: 'REVIEW',
-      items: [],
-    },
-    completed: {
-      title: 'COMPLETED',
-      items: [],
-    },
-  });
-
-  const onDragEnd = (result) => {
-    if (!result.destination) return;
-    
-    const { source, destination } = result;
-    
-    if (source.droppableId !== destination.droppableId) {
-      const sourceColumn = columns[source.droppableId];
-      const destColumn = columns[destination.droppableId];
-      const sourceItems = [...sourceColumn.items];
-      const destItems = [...destColumn.items];
-      const [removed] = sourceItems.splice(source.index, 1);
-      destItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [source.droppableId]: {
-          ...sourceColumn,
-          items: sourceItems,
-        },
-        [destination.droppableId]: {
-          ...destColumn,
-          items: destItems,
-        },
-      });
-    } else {
-      const column = columns[source.droppableId];
-      const copiedItems = [...column.items];
-      const [removed] = copiedItems.splice(source.index, 1);
-      copiedItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [source.droppableId]: {
-          ...column,
-          items: copiedItems,
-        },
-      });
-    }
-  };
-
+function TaskCard({ id, content, listeners, attributes, setNodeRef, style }) {
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">WORK NEST</h1>
-        <h2 className="text-xl font-semibold">{sprintName}</h2>
-      </div>
-
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-4 gap-4">
-          {Object.entries(columns).map(([columnId, column]) => (
-            <div key={columnId} className="bg-gray-50 rounded-lg p-4">
-              <h2 className="font-semibold mb-4">{column.title}</h2>
-              <Droppable droppableId={columnId}>
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="min-h-[500px]"
-                  >
-                    {column.items.map((item, index) => (
-                      <Draggable
-                        key={item.id}
-                        draggableId={item.id}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className="bg-white p-4 mb-2 rounded shadow"
-                          >
-                            {item.content}
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                    <button className="w-full mt-2 p-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-purple-500 hover:text-purple-500 flex items-center justify-center">
-                      <PlusIcon className="h-5 w-5 mr-2" />
-                      CREATE
-                    </button>
-                  </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
-        </div>
-      </DragDropContext>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-white text-black rounded p-2 shadow mb-2 cursor-move"
+    >
+      {content}
     </div>
   );
 }
 
-export default KanbanBoard;
+function DroppableColumn({ id, children }) {
+  const { setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} id={id} className="min-h-[250px]">
+      {children}
+    </div>
+  );
+}
+
+export default function KanbanBoard() {
+  const [columns, setColumns] = useState({
+    todo: [],
+    inProgress: [],
+    review: [],
+    completed: [],
+  });
+
+  const [taskInput, setTaskInput] = useState('');
+  const [activeColumn, setActiveColumn] = useState('todo');
+  const [activeTask, setActiveTask] = useState(null);
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  const handleAddTask = () => {
+    if (taskInput.trim() !== '') {
+      const newTask = {
+        id: `${activeColumn}-${Date.now()}`,
+        content: taskInput,
+      };
+      setColumns((prev) => ({
+        ...prev,
+        [activeColumn]: [...prev[activeColumn], newTask],
+      }));
+      setTaskInput('');
+    }
+  };
+
+  const handleDragStart = (event) => {
+    const { active } = event;
+    for (const key in columns) {
+      const task = columns[key].find((t) => t.id === active.id);
+      if (task) {
+        setActiveTask(task);
+        break;
+      }
+    }
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveTask(null);
+    if (!over || active.id === over.id) return;
+
+    let sourceCol, task;
+    for (const key in columns) {
+      if (columns[key].some((t) => t.id === active.id)) {
+        sourceCol = key;
+        task = columns[key].find((t) => t.id === active.id);
+        break;
+      }
+    }
+
+    const destCol = over.id;
+
+    if (sourceCol && destCol && sourceCol !== destCol) {
+      setColumns((prev) => {
+        const newSource = prev[sourceCol].filter((t) => t.id !== active.id);
+        const newDest = [...prev[destCol], task];
+        return {
+          ...prev,
+          [sourceCol]: newSource,
+          [destCol]: newDest,
+        };
+      });
+    }
+  };
+
+  const SortableTask = ({ task }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+    } = useSortable({ id: task.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <TaskCard
+        id={task.id}
+        content={task.content}
+        listeners={listeners}
+        attributes={attributes}
+        setNodeRef={setNodeRef}
+        style={style}
+      />
+    );
+  };
+
+  const renderColumn = (title, key) => (
+    <DroppableColumn id={key}>
+      <div className="bg-black text-white rounded-xl shadow-lg p-4 min-h-[250px]">
+        <h2 className="text-xl font-semibold mb-3">{title}</h2>
+        <SortableContext items={columns[key].map((task) => task.id)} strategy={verticalListSortingStrategy}>
+          {columns[key].map((task) => (
+            <SortableTask key={task.id} task={task} />
+          ))}
+        </SortableContext>
+        <div className="mt-4">
+          <input
+            className="w-full p-2 rounded text-black"
+            placeholder="Create a task..."
+            value={activeColumn === key ? taskInput : ''}
+            onFocus={() => setActiveColumn(key)}
+            onChange={(e) => setTaskInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+          />
+          <button
+            className="w-full mt-2 bg-violet-700 text-white font-bold py-1 rounded hover:bg-violet-100"
+            onClick={handleAddTask}
+          >
+            Add Task
+          </button>
+        </div>
+      </div>
+    </DroppableColumn>
+  );
+
+  return (
+    <div className="p-6 bg-violet-900 min-h-screen">
+      <h1 className="text-4xl font-bold text-white mb-8 text-center">Kanban Board</h1>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {renderColumn('To Do', 'todo')}
+          {renderColumn('In Progress', 'inProgress')}
+          {renderColumn('Review', 'review')}
+          {renderColumn('Completed', 'completed')}
+        </div>
+        <DragOverlay>
+          {activeTask ? (
+            <div className="bg-white text-black rounded p-2 shadow mb-2">
+              {activeTask.content}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
+  );
+}
