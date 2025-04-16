@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -15,6 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useLocation } from 'react-router-dom';
 
 function TaskCard({ id, content, listeners, attributes, setNodeRef, style }) {
   return (
@@ -40,6 +41,9 @@ function DroppableColumn({ id, children }) {
 }
 
 export default function KanbanBoard() {
+  const location = useLocation();
+  const project = location.state?.project;
+
   const [columns, setColumns] = useState({
     todo: [],
     inProgress: [],
@@ -52,6 +56,37 @@ export default function KanbanBoard() {
   const [activeTask, setActiveTask] = useState(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
+
+  const localStorageKey = `kanban_${project?.id}`;
+
+  // Load tasks on mount
+  useEffect(() => {
+    if (!project?.id) return;
+
+    const stored = localStorage.getItem(localStorageKey);
+    if (stored) {
+      setColumns(JSON.parse(stored));
+    } else {
+      const defaultTasks = {
+        todo: [
+          { id: `todo-${Date.now()}`, content: 'Setup project repo' },
+          { id: `todo-${Date.now() + 1}`, content: 'Design wireframes' },
+        ],
+        inProgress: [],
+        review: [],
+        completed: [],
+      };
+      setColumns(defaultTasks);
+      localStorage.setItem(localStorageKey, JSON.stringify(defaultTasks));
+    }
+  }, [project?.id]);
+
+  // Save tasks to localStorage whenever changed
+  useEffect(() => {
+    if (project?.id) {
+      localStorage.setItem(localStorageKey, JSON.stringify(columns));
+    }
+  }, [columns, project?.id]);
 
   const handleAddTask = () => {
     if (taskInput.trim() !== '') {

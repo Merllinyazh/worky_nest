@@ -26,7 +26,7 @@ function App() {
               <ProjectDetails />
             </ProtectedRoute>
           } />
-          <Route path="/backlogs" element={
+          <Route path="/backlogs/:projectId" element={
             <ProtectedRoute>
               <Backlogs />
             </ProtectedRoute>

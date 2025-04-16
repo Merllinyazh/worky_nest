@@ -1,29 +1,38 @@
 import { Link } from 'react-router-dom';
 import { PlusIcon, ClockIcon, UserGroupIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function Home() {
-  const [projects, setProjects] = useState([
-    {
-      id: 1,
-      name: 'Marketing Website Redesign',
-      description: 'Complete overhaul of the company marketing website with new branding',
-      team: ['John D.', 'Sarah M.', 'Mike R.'],
-      progress: 75,
-      priority: 'High',
-      dueDate: '2024-03-15',
-    },
-    {
-      id: 2,
-      name: 'Mobile App Development',
-      description: 'Native mobile application for iOS and Android platforms',
-      team: ['Alex K.', 'Emma S.'],
-      progress: 45,
-      priority: 'Medium',
-      dueDate: '2024-04-01',
-    },
-  ]);
+  const [projects, setProjects] = useState(() => {
+    const saved = localStorage.getItem('projects');
+    return saved
+      ? JSON.parse(saved)
+      : [
+          {
+            id: 1,
+            name: 'Marketing Website Redesign',
+            description: 'Complete overhaul of the company marketing website with new branding',
+            team: ['John D.', 'Sarah M.', 'Mike R.'],
+            progress: 75,
+            priority: 'High',
+            dueDate: '2024-03-15',
+          },
+          {
+            id: 2,
+            name: 'Mobile App Development',
+            description: 'Native mobile application for iOS and Android platforms',
+            team: ['Alex K.', 'Emma S.'],
+            progress: 45,
+            priority: 'Medium',
+            dueDate: '2024-04-01',
+          },
+        ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('projects', JSON.stringify(projects));
+  }, [projects]);
 
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -58,8 +67,14 @@ function Home() {
       priority: form.priority,
       dueDate: form.dueDate,
     };
-
-    setProjects((prev) => [...prev, newProject]);
+  
+    setProjects((prev) => {
+      const updated = [...prev, newProject];
+      localStorage.setItem('projects', JSON.stringify(updated));
+      localStorage.setItem(`project_${newProject.id}`, JSON.stringify(newProject));
+      return updated;
+    });
+  
     resetForm();
     setShowModal(false);
   };
@@ -229,94 +244,91 @@ function Home() {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
       >
         <AnimatePresence>
-  {projects.map((project) => (
-    <Link
-      to={`/Backlogs/`}
-      state={{ project }}
-      key={project.id}
-      className="block"
-    >
-      <motion.div
-        variants={item}
-        initial="hidden"
-        animate="show"
-        exit="exit"
-        layout
-        className="bg-white rounded-lg shadow-card hover:shadow-lg transition-shadow cursor-pointer"
-      >
-        <div className="block p-6">
-          <div className="flex justify-between items-start">
-            <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-            <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                project.priority === 'High'
-                  ? 'bg-red-100 text-red-800'
-                  : project.priority === 'Medium'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-green-100 text-green-800'
-              }`}
-            >
-              {project.priority}
-            </span>
-          </div>
+          {projects.map((project) => (
+            <Link to={`/Backlogs/${project.id}`} state={{ project }} key={project.id} className="block">
 
-          <p className="mt-2 text-sm text-gray-600">{project.description}</p>
+              <motion.div
+                variants={item}
+                initial="hidden"
+                animate="show"
+                exit="exit"
+                layout
+                className="bg-white rounded-lg shadow-card hover:shadow-lg transition-shadow cursor-pointer"
+              >
+                <div className="block p-6">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        project.priority === 'High'
+                          ? 'bg-red-100 text-red-800'
+                          : project.priority === 'Medium'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}
+                    >
+                      {project.priority}
+                    </span>
+                  </div>
 
-          <div className="mt-4">
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <span className="text-xs font-semibold text-purple-600">Progress</span>
-                <span className="text-xs font-semibold text-purple-600">{project.progress}%</span>
-              </div>
-              <div className="overflow-hidden h-2 text-xs flex rounded bg-purple-200">
-                <div
-                  style={{ width: `${project.progress}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-purple-500"
-                ></div>
-              </div>
-            </div>
-          </div>
+                  <p className="mt-2 text-sm text-gray-600">{project.description}</p>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-            <div className="flex items-center">
-              <UserGroupIcon className="h-4 w-4 mr-1" />
-              {project.team.length} members
-            </div>
-            <div className="flex items-center">
-              <ClockIcon className="h-4 w-4 mr-1" />
-              Due {new Date(project.dueDate).toLocaleDateString()}
-            </div>
-          </div>
+                  <div className="mt-4">
+                    <div className="relative pt-1">
+                      <div className="flex mb-2 items-center justify-between">
+                        <span className="text-xs font-semibold text-purple-600">Progress</span>
+                        <span className="text-xs font-semibold text-purple-600">
+                          {project.progress}%
+                        </span>
+                      </div>
+                      <div className="overflow-hidden h-2 text-xs flex rounded bg-purple-200">
+                        <div
+                          style={{ width: `${project.progress}%` }}
+                          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-purple-500"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
 
-          <div className="mt-4 flex justify-between">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openEditModal(project);
-              }}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-            >
-              <PencilSquareIcon className="h-4 w-4 mr-1" />
-              Edit
-            </button>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleDeleteProject(project.id);
-              }}
-              className="text-red-600 hover:text-red-800 text-sm font-medium"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </Link>
-  ))}
-</AnimatePresence>
+                  <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <UserGroupIcon className="h-4 w-4 mr-1" />
+                      {project.team.length} members
+                    </div>
+                    <div className="flex items-center">
+                      <ClockIcon className="h-4 w-4 mr-1" />
+                      Due {new Date(project.dueDate).toLocaleDateString()}
+                    </div>
+                  </div>
 
+                  <div className="mt-4 flex justify-between">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openEditModal(project);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+                    >
+                      <PencilSquareIcon className="h-4 w-4 mr-1" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteProject(project.id);
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          ))}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
