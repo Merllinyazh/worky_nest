@@ -14,8 +14,8 @@ import { motion } from 'framer-motion';
 function Sidebar() {
   const navigation = [
     { name: 'Home', to: '/', icon: HomeIcon },
-    { name: 'Backlogs', to: '/backlogs', icon: ClipboardDocumentListIcon },
-    { name: 'Kanban Board', to: '/kanban', icon: ViewColumnsIcon },
+   // { name: 'Backlogs', to: '/backlogs', icon: ClipboardDocumentListIcon },
+    //{ name: 'Kanban Board', to: '/kanban', icon: ViewColumnsIcon },
     { name: 'Dashboard', to: '/dashboard', icon: Squares2X2Icon },
   ];
 
@@ -33,7 +33,7 @@ function Sidebar() {
     >
       <div className="p-6">
         <div className="flex items-center space-x-3 mb-8">
-          <img src="/logo.svg" alt="Work Nest" className="h-8 w-8" />
+          <img src="/logo.svg" alt="Worky Nest" className="h-8 w-8" />
           <h1 className="text-xl font-bold text-gray-900">Work Nest</h1>
         </div>
         

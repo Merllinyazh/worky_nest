@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+const API_URL = 'http://localhost:5000/api/sprints';
 
 function Backlog() {
   const location = useLocation();
   const navigate = useNavigate();
   const incomingProject = location.state?.project;
 
-  const [project, setProject] = useState(() => {
-    const stored = localStorage.getItem("current_project");
-    return incomingProject || (stored ? JSON.parse(stored) : null);
-  });
-
+  const [project, setProject] = useState(null);
   const [sprints, setSprints] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [deletingSprintId, setDeletingSprintId] = useState(null);
   const [editingSprintId, setEditingSprintId] = useState(null);
 
   const [newSprint, setNewSprint] = useState({
@@ -28,73 +26,93 @@ function Backlog() {
     completed: false,
   });
 
-  // Persist current project to localStorage
+  // Set project data on load
   useEffect(() => {
     if (incomingProject) {
-      localStorage.setItem("current_project", JSON.stringify(incomingProject));
       setProject(incomingProject);
     }
   }, [incomingProject]);
 
-  // Load sprints or initialize with 2 default sprints if none exist
+  // Fetch sprints when project changes
   useEffect(() => {
-    if (project?.id) {
-      const stored = localStorage.getItem('sprints_by_project');
-      const allSprints = stored ? JSON.parse(stored) : {};
-
-      if (!allSprints[project.id] || allSprints[project.id].length === 0) {
-        const defaultSprints = [
-          {
-            id: Date.now(),
-            name: 'Sprint 1',
-            duration: '1 week',
-            assigned: 'Team A',
-            techStack: 'React, Node.js',
-            comment: 'Initial setup and planning',
-            completed: false,
-          },
-          {
-            id: Date.now() + 1,
-            name: 'Sprint 2',
-            duration: '1 week',
-            assigned: 'Team B',
-            techStack: 'Django, PostgreSQL',
-            comment: 'Authentication & backend integration',
-            completed: false,
-          },
-        ];
-        allSprints[project.id] = defaultSprints;
-        localStorage.setItem('sprints_by_project', JSON.stringify(allSprints));
-        setSprints(defaultSprints);
-      } else {
-        setSprints(allSprints[project.id]);
-      }
+    if (project?._id) {
+      fetchSprints(project._id);
     }
-  }, [project?.id]);
+  }, [project]);
 
-  // Save sprints to localStorage whenever they change
-  useEffect(() => {
-    if (project?.id) {
-      const stored = localStorage.getItem('sprints_by_project');
-      const allSprints = stored ? JSON.parse(stored) : {};
-      allSprints[project.id] = sprints;
-      localStorage.setItem('sprints_by_project', JSON.stringify(allSprints));
+  const fetchSprints = async (projectId) => {
+    try {
+      const res = await axios.get(`${API_URL}/${projectId}`);
+      setSprints(res.data);
+    } catch (err) {
+      toast.error("Failed to fetch sprints");
     }
-  }, [sprints, project?.id]);
+  };
 
-  const handleAddSprint = () => {
+  const handleAddSprint = async () => {
     if (!newSprint.name.trim()) {
       toast.error('Sprint name is required');
       return;
     }
 
-    const updated = editingSprintId
-      ? sprints.map((s) => (s.id === editingSprintId ? { ...newSprint, id: editingSprintId } : s))
-      : [...sprints, { ...newSprint, id: Date.now() }];
+    // Prefix sprint name in Sprint form
+    const formattedName = ` ${project.name} - ${newSprint.name}`;
 
-    setSprints(updated);
-    setShowModal(false);
-    setEditingSprintId(null);
+    const payload = {
+      ...newSprint,
+      name: formattedName,
+      projectId: project._id
+    };
+
+    try {
+      if (editingSprintId) {
+        await axios.put(`${API_URL}/${editingSprintId}`, payload);
+        toast.success('Sprint updated!');
+      } else {
+        await axios.post(`${API_URL}`, payload);
+        toast.success('Sprint created!');
+      }
+      fetchSprints(project._id);
+      resetForm();
+    } catch (err) {
+      toast.error('Error saving sprint');
+    }
+  };
+
+  const handleDeleteSprint = async (id) => {
+    if (window.confirm("Are you sure you want to delete this sprint?")) {
+      try {
+        await axios.delete(`${API_URL}/${id}`);
+        toast.success('Sprint deleted!');
+        fetchSprints(project._id);
+      } catch (err) {
+        toast.error("Failed to delete");
+      }
+    }
+  };
+
+  const handleEditSprint = (sprint) => {
+    // Remove Sprint prefix when editing to let user change name cleanly
+    const cleanName = sprint.name.replace(` ${project.name} - `, '');
+    setNewSprint({ ...sprint, name: cleanName });
+    setEditingSprintId(sprint._id);
+    setShowModal(true);
+  };
+
+  const toggleCompletion = async (sprint) => {
+    try {
+      await axios.put(`${API_URL}/${sprint._id}`, {
+        ...sprint,
+        completed: !sprint.completed,
+      });
+      toast.success("Status updated");
+      fetchSprints(project._id);
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const resetForm = () => {
     setNewSprint({
       name: '',
       duration: '',
@@ -103,171 +121,127 @@ function Backlog() {
       comment: '',
       completed: false,
     });
-
-    toast.success(editingSprintId ? 'Sprint updated!' : 'Sprint added!');
+    setEditingSprintId(null);
+    setShowModal(false);
   };
 
-  const handleDeleteSprint = (id) => {
-    setDeletingSprintId(id);
-    setTimeout(() => {
-      const updated = sprints.filter((s) => s.id !== id);
-      setSprints(updated);
-      setDeletingSprintId(null);
-      toast.error('Sprint deleted!');
-    }, 400);
-  };
-
-  const handleEditSprint = (sprint) => {
-    setNewSprint(sprint);
-    setEditingSprintId(sprint.id);
-    setShowModal(true);
-  };
-
-  const toggleSprintCompletion = (id) => {
-    const updated = sprints.map((s) =>
-      s.id === id ? { ...s, completed: !s.completed } : s
-    );
-    setSprints(updated);
-    toast.success('Sprint status updated!');
+  const handleSprintClick = (sprint) => {
+    navigate("/kanban", {
+      state: {
+        sprint: {
+          _id: sprint._id,
+          sprintName: sprint.sprintName,
+          projectName: sprint.projectName
+        }
+      }
+    }); 
   };
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-red-500 p-4 text-center">
-          No project data found. Please select a project first.
-          <button
-            onClick={() => navigate('/')}
-            className="block mt-4 text-blue-600 hover:underline"
-          >
-            Go back to projects
-          </button>
-        </div>
+      <div className="p-10 text-center text-red-500">
+        No project data found.
+        <button className="text-blue-500 ml-2" onClick={() => navigate("/")}>Go Back</button>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-white p-6 rounded relative">
-      <ToastContainer position="top-right" autoClose={3000} />
+    <div className="p-6 bg-white rounded shadow">
+      <ToastContainer />
 
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-black">Backlogs</h1>
-          <p className="text-sm text-gray-600">Project: {project.name}</p>
-        </div>
+        <h1 className="text-xl font-bold">
+          {`Sprint - ${project.name}`} {/* Sprint form */}
+        </h1>
         <button
           onClick={() => {
+            resetForm();
             setShowModal(true);
-            setEditingSprintId(null);
-            setNewSprint({
-              name: '',
-              duration: '',
-              assigned: '',
-              techStack: '',
-              comment: '',
-              completed: false,
-            });
           }}
-          className="bg-purple-600 text-white px-4 py-2 rounded-full hover:bg-purple-700"
+          className="bg-purple-600 text-white px-4 py-2 rounded"
         >
           Add Sprint
         </button>
       </div>
 
+      {/* Sprint List */}
       {sprints.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No sprints found. Add one to get started!
-        </div>
+        <p className="text-gray-500">No sprints found. Add one to get started.</p>
       ) : (
-        <AnimatePresence>
-          {sprints.map((sprint) => (
-            <motion.div
-              key={sprint.id}
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: { duration: 0.4 } }}
-              className={`bg-gray-100 mb-4 rounded-lg p-4 shadow transition-all ${
-                deletingSprintId === sprint.id ? 'opacity-0' : 'opacity-100'
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-md font-semibold text-gray-800">{sprint.name}</h3>
-                  <div className="text-xs text-gray-500">
-                    {sprint.completed ? (
-                      <span className="text-green-600">Completed</span>
-                    ) : (
-                      <span className="text-yellow-600">In Progress</span>
-                    )}
+        <div className="space-y-4">
+          <AnimatePresence>
+            {sprints.map((sprint) => (
+              <motion.div
+                key={sprint._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="p-4 bg-gray-100 rounded shadow cursor-pointer"
+                onClick={() => handleSprintClick(sprint)}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-lg font-semibold">{sprint.name}</h2>
+                    <p className="text-sm text-gray-600">{sprint.comment}</p>
+                    <div className="text-xs mt-1">
+                      Duration: {sprint.duration}, Assigned: {sprint.assigned}, Tech Stack: {sprint.techStack}
+                    </div>
+                    <div className="text-sm mt-2">
+                      Status: <span className={sprint.completed ? "text-green-600" : "text-yellow-600"}>
+                        {sprint.completed ? "Completed" : "In Progress"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right space-y-1">
                   <div className="space-x-2">
                     <button
-                      onClick={() => handleEditSprint(sprint)}
-                      className="text-sm text-blue-600 hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditSprint(sprint);
+                      }}
+                      className="text-sm text-blue-600"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDeleteSprint(sprint.id)}
-                      className="text-sm text-red-600 hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSprint(sprint._id);
+                      }}
+                      className="text-sm text-red-600"
                     >
-                      ×
+                      Delete
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCompletion(sprint);
+                      }}
+                      className="text-sm text-gray-800 bg-gray-300 px-2 py-1 rounded"
+                    >
+                      {sprint.completed ? "Mark Incomplete" : "Mark Complete"}
                     </button>
                   </div>
-                  <button
-                    onClick={() => toggleSprintCompletion(sprint.id)}
-                    className={`mt-1 text-white px-3 py-1 rounded-full text-sm flex items-center gap-1 ${
-                      sprint.completed
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : 'bg-gray-400 hover:bg-gray-500'
-                    }`}
-                  >
-                    {sprint.completed ? '✅ Completed' : '✔️ Mark Complete'}
-                  </button>
                 </div>
-              </div>
-
-              <div className="mt-3 flex gap-4">
-                <div className="text-sm text-gray-700 space-y-1">
-                  <div><strong>Duration:</strong> {sprint.duration}</div>
-                  <div><strong>Assigned:</strong> {sprint.assigned}</div>
-                  <div><strong>Tech Stack:</strong> {sprint.techStack}</div>
-                </div>
-                <div className="bg-white p-3 rounded-lg shadow-inner text-sm text-gray-700 flex-1 min-h-[80px]">
-                  {sprint.comment || 'No Comments'}
-                </div>
-              </div>
-
-              <button
-                className="mt-4 bg-purple-600 text-white px-4 py-2 rounded-full text-sm hover:bg-purple-700"
-                onClick={() =>
-                  navigate('/kanban', {
-                    state: { sprint, project },
-                  })
-                }
-              >
-                START
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
       )}
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg">
             <h2 className="text-lg font-bold mb-4">
-              {editingSprintId ? 'Edit Sprint' : 'Add New Sprint'}
+              {editingSprintId ? "Edit Sprint" : "Add Sprint"}
             </h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
               <input
                 className="w-full p-2 border rounded"
-                placeholder="Sprint Name"
+                placeholder="Name"
                 value={newSprint.name}
                 onChange={(e) => setNewSprint({ ...newSprint, name: e.target.value })}
               />
@@ -279,7 +253,7 @@ function Backlog() {
               />
               <input
                 className="w-full p-2 border rounded"
-                placeholder="Assigned"
+                placeholder="Assigned To"
                 value={newSprint.assigned}
                 onChange={(e) => setNewSprint({ ...newSprint, assigned: e.target.value })}
               />
@@ -289,40 +263,34 @@ function Backlog() {
                 value={newSprint.techStack}
                 onChange={(e) => setNewSprint({ ...newSprint, techStack: e.target.value })}
               />
-            </div>
-
-            <textarea
-              className="w-full mt-4 p-2 border rounded resize-none h-24"
-              placeholder="Comment"
-              value={newSprint.comment}
-              onChange={(e) => setNewSprint({ ...newSprint, comment: e.target.value })}
-            />
-
-            <div className="flex items-center mt-4">
-              <input
-                type="checkbox"
-                id="completed"
-                checked={newSprint.completed}
-                onChange={(e) => setNewSprint({ ...newSprint, completed: e.target.checked })}
+              <textarea
+                className="w-full p-2 border rounded"
+                placeholder="Comment"
+                value={newSprint.comment}
+                onChange={(e) => setNewSprint({ ...newSprint, comment: e.target.value })}
               />
-              <label htmlFor="completed" className="ml-2">Mark as completed</label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={newSprint.completed}
+                  onChange={(e) => setNewSprint({ ...newSprint, completed: e.target.checked })}
+                />
+                <span>Mark as Completed</span>
+              </label>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="mt-4 flex justify-end space-x-2">
               <button
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingSprintId(null);
-                }}
-                className="px-4 py-2 text-sm rounded bg-gray-200 hover:bg-gray-300"
+                onClick={resetForm}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddSprint}
-                className="px-4 py-2 text-sm rounded bg-purple-600 text-white hover:bg-purple-700"
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
               >
-                {editingSprintId ? 'Update' : 'Add Sprint'}
+                {editingSprintId ? "Update" : "Create"}
               </button>
             </div>
           </div>

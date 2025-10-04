@@ -7,12 +7,12 @@ const Navbar = () => {
       {/* Logo & Title */}
       <div className="flex items-center space-x-2">
         <img
-          src="/logo.png" // Make sure this matches your actual logo path
+          src="/logoimg.jpg" // Make sure this matches your actual logo path
           alt="logo"
           className="h-6 w-6"
         />
         <span className="text-purple-700 font-semibold text-sm tracking-wide">
-          WORK NEST
+          WOrKy NeST
         </span>
       </div>
 
