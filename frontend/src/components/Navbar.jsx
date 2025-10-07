@@ -3,7 +3,7 @@ import { Bell, User, Search } from 'lucide-react';
 
 const Navbar = () => {
   return (
-    <nav className="w-full bg-white h-14 flex items-center justify-between px-6 shadow-md fixed top-0 left-0 z-50">
+    <nav className="w-full bg-white h-16 flex items-center justify-between px-6 shadow-md fixed top-0 left-0 z-50">
       {/* Logo & Title */}
       <div className="flex items-center space-x-2">
         <img

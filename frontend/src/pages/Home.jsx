@@ -129,9 +129,9 @@ function Home() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-10 mr-20">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Tasks</h1>
+          <h1 className="text-4xl font-bold text-gray-900">My Tasks</h1>
           <p className="mt-1 text-sm text-gray-500">Manage and track your active Tasks</p>
         </div>
         <button

@@ -1,83 +1,74 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
-import ProtectedRoute from "./components/ProtectedRoute";
+import { Routes, Route, Navigate } from "react-router-dom";
 
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Backlogs from "./pages/Backlogs";
 import KanbanBoard from "./pages/KanbanBoard";
 import ProjectDetails from "./pages/ProjectDetails";
 import Teams from "./pages/Teams";
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
 
 import "./App.css";
 
 function App() {
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        {/* Default route */}
+        <Route index element={<Navigate to="home" replace />} />
 
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/backlogs"
-            element={
-              <ProtectedRoute>
-                <Backlogs />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/kanban/:projectId"
-            element={
-              <ProtectedRoute>
-                <KanbanBoard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/project/:projectId"
-            element={
-              <ProtectedRoute>
-                <ProjectDetails />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/teams"
-            element={
-              <ProtectedRoute>
-                <Teams />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Layout>
-    </Router>
+        <Route
+          path="home"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/backlogs/:projectId"
+          element={
+            <ProtectedRoute>
+              <Backlogs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/kanban/:sprintId"
+          element={
+            <ProtectedRoute>
+              <KanbanBoard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="project/:projectId"
+          element={
+            <ProtectedRoute>
+              <ProjectDetails />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="teams"
+          element={
+            <ProtectedRoute>
+              <Teams />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+    </Routes>
   );
 }
 

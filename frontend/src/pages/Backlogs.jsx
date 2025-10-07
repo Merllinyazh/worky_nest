@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import axios from 'axios';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import axios from "axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-const API_URL = 'http://localhost:5000/api/sprints';
+const API_URL = "http://localhost:5000/api/sprints";
 
 function Backlog() {
   const location = useLocation();
@@ -18,22 +18,20 @@ function Backlog() {
   const [editingSprintId, setEditingSprintId] = useState(null);
 
   const [newSprint, setNewSprint] = useState({
-    name: '',
-    duration: '',
-    assigned: '',
-    techStack: '',
-    comment: '',
+    name: "",
+    duration: "",
+    assigned: "",
+    techStack: "",
+    comment: "",
     completed: false,
   });
 
-  // Set project data on load
   useEffect(() => {
     if (incomingProject) {
       setProject(incomingProject);
     }
   }, [incomingProject]);
 
-  // Fetch sprints when project changes
   useEffect(() => {
     if (project?._id) {
       fetchSprints(project._id);
@@ -51,31 +49,30 @@ function Backlog() {
 
   const handleAddSprint = async () => {
     if (!newSprint.name.trim()) {
-      toast.error('Sprint name is required');
+      toast.error("Sprint name is required");
       return;
     }
 
-    // Prefix sprint name in Sprint form
-    const formattedName = ` ${project.name} - ${newSprint.name}`;
-
+    const formattedName = `${project.name} - ${newSprint.name}`;
     const payload = {
       ...newSprint,
       name: formattedName,
-      projectId: project._id
+      projectId: project._id,
+      projectName: project.name,
     };
 
     try {
       if (editingSprintId) {
         await axios.put(`${API_URL}/${editingSprintId}`, payload);
-        toast.success('Sprint updated!');
+        toast.success("Sprint updated!");
       } else {
-        await axios.post(`${API_URL}`, payload);
-        toast.success('Sprint created!');
+        await axios.post(API_URL, payload);
+        toast.success("Sprint created!");
       }
       fetchSprints(project._id);
       resetForm();
     } catch (err) {
-      toast.error('Error saving sprint');
+      toast.error("Error saving sprint");
     }
   };
 
@@ -83,7 +80,7 @@ function Backlog() {
     if (window.confirm("Are you sure you want to delete this sprint?")) {
       try {
         await axios.delete(`${API_URL}/${id}`);
-        toast.success('Sprint deleted!');
+        toast.success("Sprint deleted!");
         fetchSprints(project._id);
       } catch (err) {
         toast.error("Failed to delete");
@@ -92,8 +89,7 @@ function Backlog() {
   };
 
   const handleEditSprint = (sprint) => {
-    // Remove Sprint prefix when editing to let user change name cleanly
-    const cleanName = sprint.name.replace(` ${project.name} - `, '');
+    const cleanName = sprint.name.replace(`${project.name} - `, "");
     setNewSprint({ ...sprint, name: cleanName });
     setEditingSprintId(sprint._id);
     setShowModal(true);
@@ -114,11 +110,11 @@ function Backlog() {
 
   const resetForm = () => {
     setNewSprint({
-      name: '',
-      duration: '',
-      assigned: '',
-      techStack: '',
-      comment: '',
+      name: "",
+      duration: "",
+      assigned: "",
+      techStack: "",
+      comment: "",
       completed: false,
     });
     setEditingSprintId(null);
@@ -126,22 +122,24 @@ function Backlog() {
   };
 
   const handleSprintClick = (sprint) => {
-    navigate("/kanban", {
+    navigate(`/kanban/${sprint._id}`, {
       state: {
         sprint: {
           _id: sprint._id,
-          sprintName: sprint.sprintName,
-          projectName: sprint.projectName
-        }
-      }
-    }); 
+          sprintName: sprint.name,
+          projectName: project.name,
+        },
+      },
+    });
   };
 
   if (!project) {
     return (
       <div className="p-10 text-center text-red-500">
         No project data found.
-        <button className="text-blue-500 ml-2" onClick={() => navigate("/")}>Go Back</button>
+        <button className="text-blue-500 ml-2" onClick={() => navigate("/")}>
+          Go Back
+        </button>
       </div>
     );
   }
@@ -152,9 +150,7 @@ function Backlog() {
 
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">
-          {`Sprint - ${project.name}`} {/* Sprint form */}
-        </h1>
+        <h1 className="text-xl font-bold">{`Sprints - ${project.name}`}</h1>
         <button
           onClick={() => {
             resetForm();
@@ -186,10 +182,12 @@ function Backlog() {
                     <h2 className="text-lg font-semibold">{sprint.name}</h2>
                     <p className="text-sm text-gray-600">{sprint.comment}</p>
                     <div className="text-xs mt-1">
-                      Duration: {sprint.duration}, Assigned: {sprint.assigned}, Tech Stack: {sprint.techStack}
+                      Duration: {sprint.duration}, Assigned: {sprint.assigned}, Tech Stack:{" "}
+                      {sprint.techStack}
                     </div>
                     <div className="text-sm mt-2">
-                      Status: <span className={sprint.completed ? "text-green-600" : "text-yellow-600"}>
+                      Status:{" "}
+                      <span className={sprint.completed ? "text-green-600" : "text-yellow-600"}>
                         {sprint.completed ? "Completed" : "In Progress"}
                       </span>
                     </div>

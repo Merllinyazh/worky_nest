@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -24,7 +24,6 @@ const API_URL = "http://localhost:5000/api/kanbanprojects";
 function TaskCard({ task, onDelete, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(task.content);
-  
 
   const handleSave = () => {
     onUpdate(task._id, { content });
@@ -88,8 +87,11 @@ function DroppableColumn({ id, children }) {
 }
 
 export default function KanbanBoard() {
+  const { sprintId } = useParams(); // ✅ Get sprintId from URL
   const location = useLocation();
-  const sprint = location.state?.sprint;
+
+  const sprintName = location.state?.sprint?.sprintName || "Sprint";
+  const projectName = location.state?.sprint?.projectName || "Project";
 
   const [columns, setColumns] = useState({
     todo: [],
@@ -104,30 +106,42 @@ export default function KanbanBoard() {
   const sensors = useSensors(useSensor(PointerSensor));
 
   useEffect(() => {
-    console.log("Sprint ID:", sprint?._id);
-    if (!sprint?._id) return;
-    fetchTasks();
-  }, [sprint?._id]);
+  if (!sprintId) {
+    toast.error("Sprint ID missing");
+    return;
+  }
+  fetchTasks();
+}, [sprintId]);
+
 
   const fetchTasks = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/${sprint._id}`);
-      const tasks = res.data;
-      const newColumns = { todo: [], inProgress: [], review: [], completed: [] };
-      tasks.forEach((task) => newColumns[task.status].unshift(task));
-      setColumns(newColumns);
-    } catch {
-      toast.error("Failed to load tasks");
+  try {
+    const res = await axios.get(`${API_URL}/${sprintId}`);
+    if (!res.data) {
+      toast.error("No tasks found");
+      return;
     }
-  };
+    const tasks = res.data;
+    const newColumns = { todo: [], inProgress: [], review: [], completed: [] };
+    tasks.forEach((task) => {
+      if (newColumns[task.status]) {
+        newColumns[task.status].unshift(task);
+      }
+    });
+    setColumns(newColumns);
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to load tasks");
+  }
+};
 
   const handleAddTask = async () => {
     if (!taskInput.trim()) return;
     try {
       const res = await axios.post(API_URL, {
-        projectName: sprint.projectName || "Unknown Project",
-        sprintName: sprint.sprintName || "Sprint",
-        sprintId: sprint._id,
+        projectName,
+        sprintName,
+        sprintId, // ✅ Pass sprintId
         content: taskInput,
         status: "todo",
       });
@@ -235,7 +249,7 @@ export default function KanbanBoard() {
     <div className="p-6 bg-violet-900 min-h-screen">
       <ToastContainer />
       <h1 className="text-4xl font-bold text-white mb-8 text-center">
-        Kanban Board
+        Kanban Board — {sprintName}
       </h1>
       <DndContext
         sensors={sensors}
